@@ -1,0 +1,24 @@
+# CloudOS — Dashboard Module
+# Homer: lightweight, YAML-configured service dashboard
+
+networks:
+  cloudos:
+    external: true
+
+services:
+  homer:
+    image: b4bz/homer:latest
+    container_name: cloudos-dashboard
+    restart: unless-stopped
+    ports:
+      - "${HOMER_PORT:-8080}:8080"
+    volumes:
+      - ./data/homer/assets:/www/assets
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "dashboard"
+      cloudos.service: "homer"
+      cloudos.title: "CloudOS Dashboard"
+      cloudos.description: "Unified dashboard"
+      cloudos.icon: "https://cdn.jsdelivr.net/npm/@homer/icons/server.svg"

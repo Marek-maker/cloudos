@@ -1,0 +1,13 @@
+name: dashboard
+description: "Homer — unified dashboard so všetkými CloudOS službami"
+version: "0.1.0"
+depends: [auth]
+ports:
+  - "8080:8080"
+resources:
+  min_ram_mb: 64
+  min_disk_gb: 0.1
+features:
+  - dashboard
+  - service-discovery
+  - single-panel
