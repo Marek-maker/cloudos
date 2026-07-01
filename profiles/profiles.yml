@@ -1,0 +1,38 @@
+# CloudOS profiles
+# Flat YAML — each profile is a top-level block starting with name:
+
+- name: mini
+  desc: "Minimal setup — RPi Zero 2 / low-power device"
+  ram: 1
+  disk: 16
+  modules: [base]
+  note: "Just monitoring + Tailscale. Extend with specific needs."
+
+- name: household
+  desc: "Full home cloud — files, photos, search, media"
+  ram: 8
+  disk: 256
+  modules: [base, auth, filesync, search, photos]
+  note: "Covers 90% of home use. Family sharing, private cloud."
+
+- name: power
+  desc: "Power user — everything including AI"
+  ram: 16
+  disk: 512
+  modules: [base, auth, filesync, search, photos, ai]
+  note: "Adds local LLM, AI supervisor, media server."
+
+- name: pro
+  desc: "Small business — ERP, collaboration"
+  ram: 32
+  disk: 1000
+  modules: [base, auth, filesync, search, ai]
+  note: "For teams. Odoo/ERP can be added externally."
+
+- name: mesh
+  desc: "Multi-node distributed cloud (min 3 nodes)"
+  ram: 4
+  disk: 100
+  modules: [base, auth, filesync]
+  extras: [garage, nomad]
+  note: "Connect multiple devices into one redundant cluster."

@@ -1,0 +1,57 @@
+# CloudOS — Search Module
+# SearXNG (private web search) + Meilisearch (fulltext document search)
+
+networks:
+  cloudos:
+    external: true
+
+services:
+  # ─── SearXNG — Private Web Search Engine ──────────────────────────
+  searxng:
+    image: searxng/searxng:latest
+    container_name: cloudos-searxng
+    restart: unless-stopped
+    ports:
+      - "${SEARXNG_PORT:-4000}:8080"
+    environment:
+      SEARXNG_BASE_URL: "https://search.${CLOUDOS_DOMAIN:-localhost}"
+      SEARXNG_SECRET_KEY: ${SEARXNG_SECRET_KEY:-changeme}
+    volumes:
+      - searxng-config:/etc/searxng:rw
+      - searxng-themes:/usr/local/searxng/searx/static/themes:rw
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "search"
+      cloudos.service: "searxng"
+
+  # ─── Meilisearch — Fulltext Index (documents, notes) ──────────────
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: cloudos-meilisearch
+    restart: unless-stopped
+    ports:
+      - "${MEILISEARCH_PORT:-7700}:7700"
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY:-cloudos-master-key}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_ENV: production
+    volumes:
+      - meilisearch-data:/meili_data
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "search"
+      cloudos.service: "meilisearch"
+
+  # ─── Index Worker — bridges Nextcloud/Syncthing → Meilisearch ────
+  # (Future: watches file changes and updates Meilisearch index)
+  # index-worker:
+  #   image: cloudos/index-worker:latest
+  #   build: ./workers/index
+  #   ...
+
+volumes:
+  searxng-config:
+  searxng-themes:
+  meilisearch-data:

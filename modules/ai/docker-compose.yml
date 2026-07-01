@@ -1,0 +1,90 @@
+# CloudOS — AI Module
+# Ollama (local LLM) + Open WebUI (chat) + Hermes Supervisor (system AI)
+
+networks:
+  cloudos:
+    external: true
+
+services:
+  # ─── Ollama — Local LLM Runtime ────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cloudos-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_HOST: "0.0.0.0"
+      OLLAMA_KEEP_ALIVE: "24h"
+      OLLAMA_NUM_PARALLEL: "2"
+      OLLAMA_MAX_LOADED_MODELS: "2"
+    volumes:
+      - ollama-models:/root/.ollama
+      - ./data/ollama/config:/root/.ollama/config
+    networks:
+      - cloudos
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    labels:
+      cloudos.module: "ai"
+      cloudos.service: "ollama"
+
+  # ─── Open WebUI — ChatGPT-like Interface ──────────────────────────
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: cloudos-open-webui
+    restart: unless-stopped
+    ports:
+      - "${OPENWEBUI_PORT:-3000}:8080"
+    environment:
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-changeme}
+      WEBUI_AUTH: "true"
+      WEBUI_AUTH_TRUSTED_EMAIL_HEADER: "X-Forwarded-Email"
+      ENABLE_RAG: "true"
+      RAG_EMBEDDING_MODEL: "${RAG_MODEL:-all-minilm}"
+    volumes:
+      - open-webui-data:/app/backend/data
+    networks:
+      - cloudos
+    depends_on:
+      - ollama
+    labels:
+      cloudos.module: "ai"
+      cloudos.service: "open-webui"
+
+  # ─── Hermes Supervisor — System AI Agent ──────────────────────────
+  # Self-monitoring, health checks, automatic recovery, daily reports
+  # Uses Hermes Agent in headless mode via API
+  hermes-supervisor:
+    image: hermes/supervisor:latest  # future custom image
+    container_name: cloudos-hermes
+    restart: unless-stopped
+    environment:
+      HERMES_OLLAMA_URL: "http://ollama:11434"
+      HERMES_MODEL: "${SUPERVISOR_MODEL:-llama3.2:3b}"
+      HERMES_DOCKER_HOST: "unix:///var/run/docker.sock"
+      HERMES_REPORT_INTERVAL: "24h"
+      HERMES_SLACK_WEBHOOK: "${SLACK_WEBHOOK:-}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - hermes-data:/home/hermes/.hermes
+      - hermes-scripts:/home/hermes/scripts
+    networks:
+      - cloudos
+    depends_on:
+      - ollama
+    labels:
+      cloudos.module: "ai"
+      cloudos.service: "hermes-supervisor"
+
+volumes:
+  ollama-models:
+  open-webui-data:
+  hermes-data:
+  hermes-scripts:

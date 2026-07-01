@@ -218,6 +218,110 @@ cmd_setup() {
   esac
 }
 
+cmd_profile() {
+  local action="${1:-}"
+  local profile="${2:-}"
+  local profiles_yml="${CLOUDOS_ROOT}/profiles/profiles.yml"
+
+  case "$action" in
+    list)
+      echo -e "${BOLD}Available profiles:${NC}"
+      echo ""
+      
+      local name="" desc="" ram="" disk="" modules_str=""
+      while IFS= read -r line; do
+        local trimmed
+        trimmed=$(echo "$line" | sed 's/^[[:space:]]*//')
+        if [[ "$trimmed" =~ ^-\ name:[[:space:]]*(.*) || "$trimmed" =~ ^name:[[:space:]]*(.*) ]]; then
+          if [ -n "$name" ]; then
+            echo -e "  ${CYAN}${name}${NC} (${ram}GB RAM / ${disk}GB disk)"
+            echo -e "    ${desc}"
+            echo -e "    Modules: ${modules_str}"
+            echo ""
+          fi
+          name="${BASH_REMATCH[1]}"
+          desc=""; ram=""; disk=""; modules_str=""
+        elif [[ "$trimmed" =~ ^desc:[[:space:]]*\"(.*)\" ]]; then
+          desc="${BASH_REMATCH[1]}"
+        elif [[ "$trimmed" =~ ^ram:[[:space:]]*([0-9]+) ]]; then
+          ram="${BASH_REMATCH[1]}"
+        elif [[ "$trimmed" =~ ^disk:[[:space:]]*([0-9]+) ]]; then
+          disk="${BASH_REMATCH[1]}"
+        elif [[ "$trimmed" =~ ^modules:[[:space:]]*\[(.*)\] ]]; then
+          modules_str="${BASH_REMATCH[1]}"
+        fi
+      done < "$profiles_yml"
+      # Last profile
+      if [ -n "$name" ]; then
+        echo -e "  ${CYAN}${name}${NC} (${ram}GB RAM / ${disk}GB disk)"
+        echo -e "    ${desc}"
+        echo -e "    Modules: ${modules_str}"
+        echo ""
+      fi
+      ;;
+    apply)
+      if [ -z "$profile" ]; then
+        log_error "Usage: cloudos profile apply <name>"
+        return 1
+      fi
+      
+      # Find profile modules
+      local in_target=0 modules_list=""
+      while IFS= read -r line; do
+        local trimmed
+        trimmed=$(echo "$line" | sed 's/^[[:space:]]*//')
+        if [[ "$trimmed" =~ ^-\ name:[[:space:]]*(.*) || "$trimmed" =~ ^name:[[:space:]]*(.*) ]]; then
+          [ "${BASH_REMATCH[1]}" = "$profile" ] && in_target=1 || in_target=0
+        fi
+        if [ "$in_target" = 1 ] && [[ "$trimmed" =~ ^modules:[[:space:]]*\[(.*)\] ]]; then
+          modules_list="${BASH_REMATCH[1]}"
+          # Also check extras
+        fi
+        if [ "$in_target" = 1 ] && [[ "$trimmed" =~ ^extras:[[:space:]]*\[(.*)\] ]]; then
+          modules_list="${modules_list}, ${BASH_REMATCH[1]}"
+        fi
+      done < "$profiles_yml"
+      
+      if [ -z "$modules_list" ]; then
+        log_error "Profile '${profile}' not found"
+        return 1
+      fi
+      
+      log_step "Applying profile: ${profile}"
+      docker network inspect cloudos >/dev/null 2>&1 || docker network create cloudos
+      
+      IFS=',' read -ra modules <<< "$modules_list"
+      for mod in "${modules[@]}"; do
+        mod=$(echo "$mod" | xargs)  # trim
+        local yml="${CLOUDOS_ROOT}/modules/${mod}/docker-compose.yml"
+        local setup="${CLOUDOS_ROOT}/modules/${mod}/setup.sh"
+        local legacy="${CLOUDOS_ROOT}/${mod}/setup.sh"
+        
+        if [ -f "$legacy" ]; then
+          log_step "Setting up module: ${mod}"
+          source "$legacy"
+          "${mod}_setup" || log_warn "Setup for ${mod} had issues"
+        elif [ -f "$setup" ]; then
+          log_step "Setting up module: ${mod}"
+          source "$setup"
+          "${mod}_setup" || log_warn "Setup for ${mod} had issues"
+        elif [ -f "$yml" ]; then
+          log_info "Starting module: ${mod}"
+          (cd "${CLOUDOS_ROOT}/modules/${mod}" && docker compose up -d 2>&1 | tail -2)
+        else
+          log_warn "Module '${mod}' not found — skipping"
+        fi
+      done
+      
+      log_ok "Profile '${profile}' applied!"
+      cmd_status
+      ;;
+    *)
+      echo "Usage: cloudos profile {list|apply} [name]"
+      ;;
+  esac
+}
+
 cmd_version() {
   echo "CloudOS v${CLOUDOS_VERSION}"
 }
@@ -230,6 +334,8 @@ cmd_help() {
   echo "  cloudos init              Detect environment & generate config"
   echo "  cloudos up                Deploy all active modules"
   echo "  cloudos status            Show running services"
+  echo "  cloudos profile list      List available profiles"
+  echo "  cloudos profile apply <n> Install modules from a profile"
   echo "  cloudos module add <name> Install a module"
   echo "  cloudos module list       List available modules"
   echo "  cloudos setup docker      Install Docker"
@@ -252,6 +358,7 @@ case "${1:-help}" in
   init)    cmd_init ;;
   up)      cmd_up ;;
   status)  cmd_status ;;
+  profile) shift; cmd_profile "$@" ;;
   module)  shift; cmd_module "$@" ;;
   setup)   shift; cmd_setup "$@" ;;
   version) cmd_version ;;

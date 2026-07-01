@@ -1,0 +1,14 @@
+name: base
+description: "CloudOS base services — monitoring, network, DNS"
+version: "0.1.0"
+depends: []
+ports:
+  - "9001:9001"  # Netdata
+  - "8082:8080"  # cAdvisor
+resources:
+  min_ram_mb: 512
+  min_disk_gb: 1
+features:
+  - monitoring
+  - healthchecks
+  - logging

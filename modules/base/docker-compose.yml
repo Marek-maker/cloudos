@@ -1,0 +1,87 @@
+# CloudOS — Base Services
+# Monitoring, networking, DNS (always active)
+
+networks:
+  cloudos:
+    external: true
+
+services:
+  # ─── Netdata — Real-time System Monitoring ────────────────────────
+  netdata:
+    image: netdata/netdata:latest
+    container_name: cloudos-netdata
+    restart: unless-stopped
+    ports:
+      - "9001:19999"
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    environment:
+      NETDATA_DISABLE_CLOUD: "true"
+      NETDATA_DISABLE_TELEMETRY: "true"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - netdata-storage:/var/cache/netdata
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "base"
+      cloudos.service: "netdata"
+
+  # ─── cAdvisor — Container Resource Monitoring ─────────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cloudos-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "base"
+      cloudos.service: "cadvisor"
+
+  # ─── Watchtower — Automatic Docker Updates ────────────────────────
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: cloudos-watchtower
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_SCHEDULE: "0 0 4 * * *"  # daily at 4am
+      WATCHTOWER_NOTIFICATIONS: "shoutrrr"
+      WATCHTOWER_NOTIFICATION_URL: "${WATCHTOWER_NOTIFY_URL:-}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      cloudos.module: "base"
+      cloudos.service: "watchtower"
+
+  # ─── Healthcheck Endpoint ─────────────────────────────────────────
+  healthcheck:
+    image: alpine:latest
+    container_name: cloudos-healthcheck
+    restart: unless-stopped
+    entrypoint: >
+      sh -c "
+      apk add --no-cache curl bind-tools >/dev/null 2>&1 &&
+      while true; do
+        echo 'OK' > /tmp/health
+        sleep 60
+      done"
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "base"
+      cloudos.service: "healthcheck"
+
+volumes:
+  netdata-storage:
