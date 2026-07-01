@@ -1,0 +1,14 @@
+name: filesync
+description: "Nextcloud + OnlyOffice — file sync, sharing, dokumenty"
+version: "0.1.0"
+depends: [auth]
+ports:
+  - "8081:80"
+resources:
+  min_ram_mb: 2048
+  min_disk_gb: 10
+features:
+  - file-sync
+  - document-editing
+  - calendar
+  - contacts

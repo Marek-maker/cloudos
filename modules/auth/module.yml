@@ -1,0 +1,16 @@
+name: auth
+description: "Authentik SSO + Caddy reverse proxy s automatickým SSL"
+version: "0.1.0"
+depends: []
+ports:
+  - "80:80"
+  - "443:443"
+  - "9000:9000"  # Authentik admin
+resources:
+  min_ram_mb: 1024
+  min_disk_gb: 2
+features:
+  - single-sign-on
+  - auto-ssl
+  - oidc-provider
+  - reverse-proxy

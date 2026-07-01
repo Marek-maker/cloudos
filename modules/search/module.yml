@@ -1,0 +1,14 @@
+name: search
+description: "SearXNG + Meilisearch — private web & document search"
+version: "0.1.0"
+depends: [auth]
+ports:
+  - "4000:8080"  # SearXNG
+  - "7700:7700"  # Meilisearch
+resources:
+  min_ram_mb: 1024
+  min_disk_gb: 2
+features:
+  - private-web-search
+  - fulltext-search
+  - document-indexing

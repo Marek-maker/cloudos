@@ -1,0 +1,14 @@
+name: photos
+description: "Immich — Google Photos alternative s AI taggingom"
+version: "0.1.0"
+depends: [auth, ai]
+ports:
+  - "2283:2283"  # Immich
+resources:
+  min_ram_mb: 4096
+  min_disk_gb: 20
+features:
+  - photo-management
+  - ai-tagging
+  - face-detection
+  - auto-albums

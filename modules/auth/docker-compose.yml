@@ -1,0 +1,105 @@
+# CloudOS — Auth Module
+# Authentik (SSO) + Caddy (reverse proxy + auto SSL)
+
+networks:
+  cloudos:
+    external: true
+
+services:
+  # ─── Caddy — Reverse Proxy with Auto SSL ───────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: cloudos-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./data/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy/data:/data
+      - ./data/caddy/config:/config
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "auth"
+      cloudos.service: "caddy"
+
+  # ─── Authentik — SSO / Identity Provider ───────────────────────────
+  authentik-server:
+    image: ghcr.io/goauthentik/server:latest
+    container_name: cloudos-authentik
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-db
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD:-changeme}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-changeme}
+      AUTHENTIK_BOOTSTRAP_EMAIL: ${CLOUDOS_ADMIN_EMAIL:-admin@cloudos.local}
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${CLOUDOS_ADMIN_PASSWORD:-cloudos}
+    volumes:
+      - ./data/authentik/media:/media
+      - ./data/authentik/custom-templates:/templates
+    networks:
+      - cloudos
+    depends_on:
+      - authentik-db
+      - authentik-redis
+    labels:
+      cloudos.module: "auth"
+      cloudos.service: "authentik-server"
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:latest
+    container_name: cloudos-authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-db
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_DB_PASSWORD:-changeme}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-changeme}
+    volumes:
+      - ./data/authentik/media:/media
+      - ./data/authentik/custom-templates:/templates
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - cloudos
+    depends_on:
+      - authentik-db
+      - authentik-redis
+    labels:
+      cloudos.module: "auth"
+      cloudos.service: "authentik-worker"
+
+  # ─── Authentik Dependencies ────────────────────────────────────────
+  authentik-db:
+    image: postgres:16-alpine
+    container_name: cloudos-authentik-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: ${AUTHENTIK_DB_PASSWORD:-changeme}
+    volumes:
+      - authentik-db:/var/lib/postgresql/data
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "auth"
+
+  authentik-redis:
+    image: redis:7-alpine
+    container_name: cloudos-authentik-redis
+    restart: unless-stopped
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "auth"
+
+volumes:
+  authentik-db:

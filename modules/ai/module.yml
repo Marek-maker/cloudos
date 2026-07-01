@@ -1,0 +1,16 @@
+name: ai
+description: "Ollama + Open WebUI + Hermes AI supervisor agent"
+version: "0.1.0"
+depends: [auth]
+ports:
+  - "11434:11434"  # Ollama
+  - "3000:8080"    # Open WebUI
+resources:
+  min_ram_mb: 8192
+  min_disk_gb: 10
+  gpu_recommended: true
+features:
+  - local-llm
+  - ai-chat
+  - system-supervisor
+  - rag

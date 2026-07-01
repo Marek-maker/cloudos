@@ -1,0 +1,80 @@
+# CloudOS — File Sync Module
+# Nextcloud + OnlyOffice + Collabora
+
+networks:
+  cloudos:
+    external: true
+
+services:
+  nextcloud:
+    image: nextcloud:stable
+    container_name: cloudos-nextcloud
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      POSTGRES_HOST: nextcloud-db
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASSWORD:-changeme}
+      NEXTCLOUD_ADMIN_USER: ${CLOUDOS_ADMIN_EMAIL:-admin@cloudos.local}
+      NEXTCLOUD_ADMIN_PASSWORD: ${CLOUDOS_ADMIN_PASSWORD:-cloudos}
+      TRUSTED_DOMAINS: ${CLOUDOS_TAILSCALE_HOSTNAME:-localhost} nextcloud.${CLOUDOS_TAILSCALE_HOSTNAME:-localhost}
+      OVERWRITEPROTOCOL: https
+    volumes:
+      - nextcloud-data:/var/www/html
+      - nextcloud-config:/var/www/html/config
+      - ${EXTERNAL_DATA_DIR:-./data/nextcloud}:/mnt/data
+    networks:
+      - cloudos
+    depends_on:
+      - nextcloud-db
+    labels:
+      cloudos.module: "filesync"
+      cloudos.service: "nextcloud"
+
+  nextcloud-db:
+    image: postgres:16-alpine
+    container_name: cloudos-nextcloud-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASSWORD:-changeme}
+    volumes:
+      - nextcloud-db:/var/lib/postgresql/data
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "filesync"
+
+  # OnlyOffice — Document server
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: cloudos-onlyoffice
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-changeme}
+    volumes:
+      - onlyoffice-data:/var/www/onlyoffice/Data
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "filesync"
+
+  # Redis cache for Nextcloud
+  nextcloud-redis:
+    image: redis:7-alpine
+    container_name: cloudos-nextcloud-redis
+    restart: unless-stopped
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "filesync"
+
+volumes:
+  nextcloud-data:
+  nextcloud-db:
+  nextcloud-config:
+  onlyoffice-data:
