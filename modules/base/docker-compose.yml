@@ -59,6 +59,7 @@ services:
       WATCHTOWER_SCHEDULE: "0 0 4 * * *"  # daily at 4am
       WATCHTOWER_NOTIFICATIONS: "shoutrrr"
       WATCHTOWER_NOTIFICATION_URL: "${WATCHTOWER_NOTIFY_URL:-}"
+      DOCKER_API_VERSION: "1.40"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     labels:

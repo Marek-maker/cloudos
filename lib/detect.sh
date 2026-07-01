@@ -40,9 +40,17 @@ detect_resources() {
 
 detect_tailscale() {
   if has_cmd tailscale; then
-    if tailscale status 2>/dev/null | head -1 | grep -qi "tailscale"; then
+    if tailscale status 2>/dev/null | head -1 | grep -qiE "tailscale|direct|active|linux|windows"; then
       CLOUDOS_TAILSCALE="yes"
       CLOUDOS_TAILSCALE_IP=$(tailscale ip -4 2>/dev/null || echo "unknown")
+      CLOUDOS_TAILSCALE_HOSTNAME=$(tailscale status 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
+      log_ok "Tailscale: ${CLOUDOS_TAILSCALE_IP} (${CLOUDOS_TAILSCALE_HOSTNAME})"
+      return
+    fi
+    # Fallback: just check if tailscale ip returns something
+    if tailscale ip -4 2>/dev/null | grep -q '^100\.'; then
+      CLOUDOS_TAILSCALE="yes"
+      CLOUDOS_TAILSCALE_IP=$(tailscale ip -4 2>/dev/null)
       CLOUDOS_TAILSCALE_HOSTNAME=$(tailscale status 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
       log_ok "Tailscale: ${CLOUDOS_TAILSCALE_IP} (${CLOUDOS_TAILSCALE_HOSTNAME})"
       return
