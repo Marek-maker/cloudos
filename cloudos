@@ -160,10 +160,16 @@ cmd_module() {
       
       local module_path="${CLOUDOS_ROOT}/modules/${module}"
       local module_lib="${CLOUDOS_ROOT}/${module}/setup.sh"
+      local module_new="${module_path}/setup.sh"
       
       if [ -f "${module_lib}" ]; then
         log_step "Adding module: ${module}"
         source "${module_lib}"
+        "${module}_setup"
+        log_ok "Module ${module} added"
+      elif [ -f "${module_new}" ]; then
+        log_step "Adding module: ${module}"
+        source "${module_new}"
         "${module}_setup"
         log_ok "Module ${module} added"
       else

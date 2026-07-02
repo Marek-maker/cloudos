@@ -10,7 +10,7 @@ photos_setup() {
   mkdir -p "${data_dir}/library" "${data_dir}/postgres"
 
   # Generate secure DB password if .env doesn't exist or has placeholder
-  if [ ! -f "${module_dir}/.env" ] || grep -q "CHANGE_ME" "${module_dir}/.env" 2>/dev/null; then
+  if [ ! -f "${module_dir}/.env" ] || grep -qE "CHANGE|^\*" "${module_dir}/.env" 2>/dev/null; then
     local db_pass
     db_pass=$(openssl rand -base64 24 2>/dev/null | tr -cd 'A-Za-z0-9' | head -c 24 || echo "immich_$(date +%s)")
     
