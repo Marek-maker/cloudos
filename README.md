@@ -17,13 +17,15 @@ CloudOS je opensource platforma, ktorá spája silu FOSS self-hosted služieb s 
 
 | Modul | Služba | Status |
 |-------|--------|--------|
-| `auth` | Authentik + Caddy + OIDC | 🔧 Planned |
-| `filesync` | Nextcloud + OnlyOffice | 🔧 Planned |
-| `search` | SearXNG + Meilisearch | 🔧 Planned |
-| `photos` | Immich + AI tagging | 🔧 Planned |
-| `ai` | Ollama + Open WebUI + Hermes supervisor | 🔧 Planned |
-| `media` | Jellyfin + Navidrome | 🔧 Planned |
-| `mail` | Mailcow / Maddy | 🔧 Planned |
+| `base` | Netdata + cAdvisor + Watchtower | ✅ Hotovo |
+| `auth` | Authentik + Caddy + OIDC | ✅ Hotovo |
+| `filesync` | Nextcloud + OnlyOffice | ✅ Hotovo |
+| `search` | SearXNG + Meilisearch | ✅ Hotovo |
+| `dashboard` | Homer unified dashboard | ✅ Hotovo |
+| `ai` | Ollama + Open WebUI + Hermes supervisor | ✅ Hotovo |
+| `photos` | Immich + AI tagging | 🔧 Chystá sa |
+| `media` | Jellyfin + Navidrome | 🔧 Chystá sa |
+| `mail` | Mailcow / Maddy | 🔧 Chystá sa |
 
 ### Použitie
 

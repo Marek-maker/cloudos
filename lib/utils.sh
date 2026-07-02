@@ -91,10 +91,15 @@ get_gpu_info() {
   esac
 }
 
-# Get disk info
+# Get disk info — cross-platform (Linux + Windows/git-bash)
 get_disk_info() {
   local path="${1:-/}"
-  if has_cmd df; then
+  if [ "$(get_os)" = "windows" ]; then
+    # git-bash: df /c/ gives Windows C: info
+    local c_drive
+    c_drive=$(df -h /c/ 2>/dev/null | awk 'NR==2 {print $2, $4, $1}')
+    [ -n "$c_drive" ] && echo "$c_drive" || echo "C: (unknown)"
+  elif has_cmd df; then
     df -h "$path" 2>/dev/null | awk 'NR==2 {print $2, $4, $1}'
   else
     echo "unknown"
