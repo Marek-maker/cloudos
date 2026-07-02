@@ -159,17 +159,11 @@ cmd_module() {
       fi
       
       local module_path="${CLOUDOS_ROOT}/modules/${module}"
-      local module_lib="${CLOUDOS_ROOT}/${module}/setup.sh"
-      local module_new="${module_path}/setup.sh"
+      local setup="${module_path}/setup.sh"
       
-      if [ -f "${module_lib}" ]; then
+      if [ -f "$setup" ]; then
         log_step "Adding module: ${module}"
-        source "${module_lib}"
-        "${module}_setup"
-        log_ok "Module ${module} added"
-      elif [ -f "${module_new}" ]; then
-        log_step "Adding module: ${module}"
-        source "${module_new}"
+        source "$setup"
         "${module}_setup"
         log_ok "Module ${module} added"
       else
@@ -190,8 +184,37 @@ cmd_module() {
         echo -e "  ${name}\t${desc}\t(${status})"
       done
       ;;
+    remove)
+      if [ -z "$module" ]; then
+        log_error "Usage: cloudos module remove <name>"
+        exit 1
+      fi
+      local compose="${CLOUDOS_ROOT}/modules/${module}/docker-compose.yml"
+      if [ -f "$compose" ]; then
+        log_step "Removing module: ${module}"
+        (cd "${CLOUDOS_ROOT}/modules/${module}" && docker compose down -v 2>&1 | tail -3)
+        log_ok "Module ${module} removed"
+      else
+        log_error "Module '${module}' not found or not installed"
+        exit 1
+      fi
+      ;;
+    logs)
+      if [ -z "$module" ]; then
+        log_error "Usage: cloudos module logs <name> [lines]"
+        exit 1
+      fi
+      local lines="${2:-50}"
+      local compose="${CLOUDOS_ROOT}/modules/${module}/docker-compose.yml"
+      if [ -f "$compose" ]; then
+        (cd "${CLOUDOS_ROOT}/modules/${module}" && docker compose logs --tail "$lines" 2>&1)
+      else
+        log_error "Module '${module}' not found"
+        exit 1
+      fi
+      ;;
     *)
-      echo "Usage: cloudos module {add|list} [name]"
+      echo "Usage: cloudos module {add|remove|logs|list} [name]"
       ;;
   esac
 }
@@ -301,13 +324,8 @@ cmd_profile() {
         mod=$(echo "$mod" | xargs)  # trim
         local yml="${CLOUDOS_ROOT}/modules/${mod}/docker-compose.yml"
         local setup="${CLOUDOS_ROOT}/modules/${mod}/setup.sh"
-        local legacy="${CLOUDOS_ROOT}/${mod}/setup.sh"
         
-        if [ -f "$legacy" ]; then
-          log_step "Setting up module: ${mod}"
-          source "$legacy"
-          "${mod}_setup" || log_warn "Setup for ${mod} had issues"
-        elif [ -f "$setup" ]; then
+        if [ -f "$setup" ]; then
           log_step "Setting up module: ${mod}"
           source "$setup"
           "${mod}_setup" || log_warn "Setup for ${mod} had issues"
@@ -343,6 +361,8 @@ cmd_help() {
   echo "  cloudos profile list      List available profiles"
   echo "  cloudos profile apply <n> Install modules from a profile"
   echo "  cloudos module add <name> Install a module"
+  echo "  cloudos module remove <n> Remove a module"
+  echo "  cloudos module logs <n>   Show module logs"
   echo "  cloudos module list       List available modules"
   echo "  cloudos setup docker      Install Docker"
   echo "  cloudos setup tailscale   Install Tailscale"
