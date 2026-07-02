@@ -1,0 +1,105 @@
+# CloudOS — Photos Module (Immich)
+# High performance self-hosted photo and video management
+# https://immich.app
+
+networks:
+  cloudos:
+    external: true
+
+services:
+  # ─── Immich Server — Main API & Web UI ────────────────────────────
+  immich-server:
+    container_name: cloudos-immich-server
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-v3}
+    volumes:
+      - ${UPLOAD_LOCATION}:/data
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env
+    ports:
+      - "${IMMICH_PORT:-2283}:2283"
+    depends_on:
+      redis:
+        condition: service_healthy
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: curl -f http://localhost:2283/.well-known/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "photos"
+      cloudos.service: "immich-server"
+
+  # ─── Immich Machine Learning — AI tagging, face detection ─────────
+  immich-machine-learning:
+    container_name: cloudos-immich-ml
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-v3}
+    volumes:
+      - model-cache:/cache
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      disable: false
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "photos"
+      cloudos.service: "immich-ml"
+    # GPU acceleration (uncomment if NVIDIA GPU available)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ─── Valkey / Redis — Cache & Queue ───────────────────────────────
+  redis:
+    container_name: cloudos-immich-redis
+    image: docker.io/valkey/valkey:9
+    healthcheck:
+      test: redis-cli ping || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "photos"
+      cloudos.service: "immich-redis"
+
+  # ─── PostgreSQL — Database with pgvector ──────────────────────────
+  database:
+    container_name: cloudos-immich-postgres
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_DB: ${DB_DATABASE_NAME:-immich}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    shm_size: 128mb
+    restart: unless-stopped
+    healthcheck:
+      test: pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE_NAME:-immich} || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cloudos
+    labels:
+      cloudos.module: "photos"
+      cloudos.service: "immich-postgres"
+
+volumes:
+  model-cache:
+  postgres-data:
